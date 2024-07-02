@@ -16,7 +16,7 @@
 Field for compound nerf model, adds scene contraction and image embeddings to instant ngp
 """
 
-from typing import Dict, Literal, Optional, Tuple
+from typing import Dict, Literal, Optional, Tuple, List
 
 import torch
 from torch import Tensor, nn
@@ -33,6 +33,7 @@ from nerfstudio.field_components.field_heads import (
     TransientDensityFieldHead,
     TransientRGBFieldHead,
     UncertaintyFieldHead,
+    layer_num_to_enum
 )
 from nerfstudio.field_components.mlp import MLP, MLPWithHashEncoding
 from nerfstudio.field_components.spatial_distortions import SpatialDistortion
@@ -68,6 +69,7 @@ class NerfactoField(Field):
     """
 
     aabb: Tensor
+    intermediate_outputs = None
 
     def __init__(
         self,
@@ -200,6 +202,18 @@ class NerfactoField(Field):
             implementation=implementation,
         )
 
+    def add_intermediate_outputs(self, layers: List[int]):
+        for layer in layers:
+            if layer < 0 or layer >= self.mlp_head.num_layers:
+                print(f'WARNING: Layer {layer} is out of bounds.')
+            else:
+                if self.intermediate_outputs is None:
+                    self.intermediate_outputs = [layer]
+                    self.mlp_head.intermediate_outputs = [layer]
+                else:
+                    self.intermediate_outputs.append(layer)
+                    self.mlp_head.intermediate_outputs = [layer]
+
     def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, Tensor]:
         """Computes and returns the densities."""
         if self.spatial_distortion is not None:
@@ -301,5 +315,9 @@ class NerfactoField(Field):
         )
         rgb = self.mlp_head(h).view(*outputs_shape, -1).to(directions)
         outputs.update({FieldHeadNames.RGB: rgb})
+
+        if self.intermediate_outputs is not None:
+            for (i, layer) in enumerate(self.intermediate_outputs):
+                outputs.update({layer_num_to_enum(layer): self.mlp_head(h, get_intermediate_outputs=True)[i].view(*outputs_shape, -1).to(directions)})
 
         return outputs

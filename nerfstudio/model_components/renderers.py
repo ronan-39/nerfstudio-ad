@@ -446,3 +446,49 @@ class NormalsRenderer(nn.Module):
         if normalize:
             n = safe_normalize(n)
         return n
+
+class FeaturesRenderer(nn.Module):
+    """Volumetric feature rendering
+
+    Modified version of the RGB renderer, takes in intermediate feature vectors instead of RGB vectors
+    """
+    def __init__(self):
+        super().__init__()
+
+    @classmethod
+    def combine_features(
+        cls,
+        features,
+        weights,
+        ray_indices = None,
+        num_rays = None
+    ) -> Float[Tensor, "TODO"]:
+        """Composite samples along ray
+        """
+        print("features shape:", features.shape)
+        print("weights shape:", weights.shape)
+
+        if ray_indices is not None and num_rays is not None:
+            # Necessary for packed samples from volumetric ray sampler
+            comp_features = nerfacc.accumulate_along_rays(
+                weights[..., 0], values=features, ray_indices=ray_indices, n_rays=num_rays
+            )
+        else:
+            comp_features = torch.sum(weights * features, dim=-2) # is this right? what does dim=-2 imply?
+
+        return 0
+        # return comp_features
+
+    def forward(
+        self,
+        features,
+        weights,
+        ray_indices: Optional[Int[Tensor, "num samples"]] = None,
+        num_rays: Optional[int] = None
+    ) -> Float[Tensor, "TODO"]:
+        
+        out = self.combine_features(
+            features, weights, ray_indices=ray_indices, num_rays=num_rays
+        )
+
+        return out

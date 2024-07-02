@@ -71,6 +71,8 @@ class MLP(FieldComponent):
         implementation: Implementation of hash encoding. Fallback to torch if tcnn not available.
     """
 
+    intermediate_outputs = None
+
     def __init__(
         self,
         in_dim: int,
@@ -177,12 +179,41 @@ class MLP(FieldComponent):
         if self.out_activation is not None:
             x = self.out_activation(x)
         return x
+    
+    def pytorch_intermediate_fwd(self, in_tensor: Float[Tensor, "*bs in_dim"]):
+        """Process input with a multilayer perceptron. 
+        Output the activations of the hidden layers specified by self.intermediate_outputs
+        """
 
-    def forward(self, in_tensor: Float[Tensor, "*bs in_dim"]) -> Float[Tensor, "*bs out_dim"]:
-        if self.tcnn_encoding is not None:
-            return self.tcnn_encoding(in_tensor)
-        return self.pytorch_fwd(in_tensor)
+        x = in_tensor
+        activations = []
 
+        assert self.intermediate_outputs is not None
+
+        for i, layer in enumerate(self.layers):
+            # as checked in `build_nn_modules`, 0 should not be in `_skip_connections`
+            if i in self._skip_connections:
+                x = torch.cat([in_tensor, x], -1)
+            x = layer(x)
+            if self.activation is not None and i < len(self.layers) - 1:
+                x = self.activation(x)
+
+            if i in self.intermediate_outputs:
+                activations.append(x)
+
+        return activations
+
+    def forward(self, in_tensor: Float[Tensor, "*bs in_dim"], get_intermediate_outputs: Optional[bool] = False) -> Float[Tensor, "*bs out_dim"]:
+        if self.intermediate_outputs is None or get_intermediate_outputs is False:
+            if self.tcnn_encoding is not None:
+                return self.tcnn_encoding(in_tensor)
+        
+            return self.pytorch_fwd(in_tensor)
+        else:
+            if self.tcnn_encoding is not None:
+                raise NotImplementedError("Intermediate layer sampling has not been implemented for tcnn implementations")
+            
+            return self.pytorch_intermediate_fwd(in_tensor)
 
 class MLPWithHashEncoding(FieldComponent):
     """Multilayer perceptron with hash encoding

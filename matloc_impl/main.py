@@ -28,6 +28,11 @@ def main():
     # generate a camera with simple params pointed at the center of the scene
     cam = utils.gen_camera()
 
+    # tell the model's field to output the activations of a "intermediate"(hidden) layer
+    pipeline.model.field.add_intermediate_outputs([1])
+
+    print(pipeline.model.field.mlp_head.intermediate_outputs)
+
     # get outputs of the NeRF from the camera's POV
     outputs = pipeline.model.get_outputs_for_camera(cam)
 

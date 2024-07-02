@@ -42,7 +42,22 @@ class FieldHeadNames(Enum):
     SDF = "sdf"
     ALPHA = "alpha"
     GRADIENT = "gradient"
+    # if we ever use models that have more than a handful of layers, gotta find a better way to do this
+    LAYER0 = "layer0"
+    LAYER1 = "layer1"
+    LAYER2 = "layer2"
+    LAYER3 = "layer3"
+    LAYER4 = "layer4"
+    LAYER5 = "layer5"
+    LAYER6 = "layer6"
 
+def layer_num_to_enum(num):
+    if num == 0: return FieldHeadNames.LAYER0
+    elif num == 1: return FieldHeadNames.LAYER1
+    elif num == 2: return FieldHeadNames.LAYER2
+    elif num == 3: return FieldHeadNames.LAYER3
+    elif num == 4: return FieldHeadNames.LAYER4
+    else: return FieldHeadNames.LAYER5
 
 class FieldHead(FieldComponent):
     """Base field output

@@ -28,7 +28,7 @@ from torch.nn import Parameter
 from nerfstudio.cameras.camera_optimizers import CameraOptimizer, CameraOptimizerConfig
 from nerfstudio.cameras.rays import RayBundle, RaySamples
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
-from nerfstudio.field_components.field_heads import FieldHeadNames
+from nerfstudio.field_components.field_heads import FieldHeadNames, layer_num_to_enum
 from nerfstudio.field_components.spatial_distortions import SceneContraction
 from nerfstudio.fields.density_fields import HashMLPDensityField
 from nerfstudio.fields.nerfacto_field import NerfactoField
@@ -41,7 +41,7 @@ from nerfstudio.model_components.losses import (
     scale_gradients_by_distance_squared,
 )
 from nerfstudio.model_components.ray_samplers import ProposalNetworkSampler, UniformSampler
-from nerfstudio.model_components.renderers import AccumulationRenderer, DepthRenderer, NormalsRenderer, RGBRenderer
+from nerfstudio.model_components.renderers import AccumulationRenderer, DepthRenderer, NormalsRenderer, RGBRenderer, FeaturesRenderer
 from nerfstudio.model_components.scene_colliders import NearFarCollider
 from nerfstudio.model_components.shaders import NormalsShader
 from nerfstudio.models.base_model import Model, ModelConfig
@@ -140,6 +140,17 @@ class NerfactoModel(Model):
     """
 
     config: NerfactoModelConfig
+    # intermediate_outputs = None # a list of the hidden layers to return outputs from
+
+    # def add_intermediate_outputs(self, layers: List[int]):
+    #     for layer in layers:
+    #         if layer < 0 or layer >= self.field.mlp_head.num_layers:
+    #             print(f'WARNING: Layer {layer} is out of bounds.')
+    #         else:
+    #             if self.intermediate_outputs is None:
+    #                 self.intermediate_outputs = [layer]
+    #             else:
+    #                 self.intermediate_outputs.append(layer)
 
     def populate_modules(self):
         """Set the fields and modules."""
@@ -235,6 +246,7 @@ class NerfactoModel(Model):
         self.renderer_depth = DepthRenderer(method="median")
         self.renderer_expected_depth = DepthRenderer(method="expected")
         self.renderer_normals = NormalsRenderer()
+        self.renderer_features = FeaturesRenderer()
 
         # shaders
         self.normals_shader = NormalsShader()
@@ -321,6 +333,13 @@ class NerfactoModel(Model):
             "depth": depth,
             "expected_depth": expected_depth,
         }
+
+        if self.field.intermediate_outputs is not None:
+            for layer in self.field.intermediate_outputs:
+                print(field_outputs[layer_num_to_enum(layer)].shape)
+                feature_render = self.renderer_features(features=field_outputs[layer_num_to_enum(layer)], weights=weights)
+                # feature_render = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
+                outputs["layer" + str(layer)] = feature_render
 
         if self.config.predict_normals:
             normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
