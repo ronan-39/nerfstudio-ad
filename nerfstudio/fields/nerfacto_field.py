@@ -303,6 +303,7 @@ class NerfactoField(Field):
             x = self.mlp_pred_normals(pred_normals_inp).view(*outputs_shape, -1).to(directions)
             outputs[FieldHeadNames.PRED_NORMALS] = self.field_head_pred_normals(x)
 
+        # rgb
         h = torch.cat(
             [
                 d,
@@ -316,9 +317,9 @@ class NerfactoField(Field):
         rgb = self.mlp_head(h).view(*outputs_shape, -1).to(directions)
         outputs.update({FieldHeadNames.RGB: rgb})
 
+        # intermediate layers
         if self.intermediate_outputs is not None:
             for (i, layer) in enumerate(self.intermediate_outputs):
                 outputs.update({layer_num_to_enum(layer): self.mlp_head(h, get_intermediate_outputs=True)[i].view(*outputs_shape, -1).to(directions)})
-                # outputs.update({layer_num_to_enum(layer): self.mlp_head(h, get_intermediate_outputs=False).view(*outputs_shape, -1).to(directions)})
 
         return outputs

@@ -31,18 +31,20 @@ def gen_camera():
     return Cameras(torch.tensor(transform_matrix), fx, fy, pp_w, pp_h)
 
 
-def display_depth_image(o): # input a depth tensor TODO: assert that its the correct input
-    # print(len(o))
-    # print(o.shape)
-    _max = o.max()
-    _min = o.min()
+def display_depth_image(o, filter=False): # input a depth tensor TODO: assert that its the correct input
 
+    o = o.permute(2,0,1)
+
+    if filter:
     # make the depth image look better (not sure how this affects other outputs)
-    o -= _min.item()
-    o /= _max.item()
-    o = np.power(o, 1/4) # tune the exponent per NeRF, 1/4 is good for the gorilla
-    o *= 255.0
-    o = np.where( o > 80.0, 255.0, o)
+        _max = o.max()
+        _min = o.min()
+
+        o -= _min.item()
+        o /= _max.item()
+        o = np.power(o, 1/4) # tune the exponent per NeRF, 1/4 is good for the gorilla
+        o *= 255.0
+        o = np.where( o > 80.0, 255.0, o)
 
     to_pil = ToPILImage()
     image = to_pil(o) # use this if you use `o.where()` (it becomes an array instead of tensor)
@@ -55,8 +57,6 @@ def display_features_image(o):
     """
 
     a = nerfstudio.utils.colormaps.apply_colormap(o, colormap_options=ColormapOptions())
-    # print(a.shape)
-
     a = a.permute(2,0,1)
 
     to_pil = ToPILImage()

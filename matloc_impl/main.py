@@ -36,11 +36,8 @@ def main():
 
     print(outputs.keys())
 
-    print("depth shape:", outputs['rgb'].shape)
     utils.display_features_image(outputs['layer1'])
-    # utils.display_depth_image(outputs['rgb'][:,:,1])
+    utils.display_depth_image(outputs['depth'], filter=False)
 
 
 main()
-
-# utils.display_features_image(1)
