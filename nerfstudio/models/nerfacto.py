@@ -140,17 +140,6 @@ class NerfactoModel(Model):
     """
 
     config: NerfactoModelConfig
-    # intermediate_outputs = None # a list of the hidden layers to return outputs from
-
-    # def add_intermediate_outputs(self, layers: List[int]):
-    #     for layer in layers:
-    #         if layer < 0 or layer >= self.field.mlp_head.num_layers:
-    #             print(f'WARNING: Layer {layer} is out of bounds.')
-    #         else:
-    #             if self.intermediate_outputs is None:
-    #                 self.intermediate_outputs = [layer]
-    #             else:
-    #                 self.intermediate_outputs.append(layer)
 
     def populate_modules(self):
         """Set the fields and modules."""
@@ -336,9 +325,7 @@ class NerfactoModel(Model):
 
         if self.field.intermediate_outputs is not None:
             for layer in self.field.intermediate_outputs:
-                print(field_outputs[layer_num_to_enum(layer)].shape)
                 feature_render = self.renderer_features(features=field_outputs[layer_num_to_enum(layer)], weights=weights)
-                # feature_render = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
                 outputs["layer" + str(layer)] = feature_render
 
         if self.config.predict_normals:

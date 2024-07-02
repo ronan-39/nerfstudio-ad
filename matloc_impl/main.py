@@ -31,12 +31,16 @@ def main():
     # tell the model's field to output the activations of a "intermediate"(hidden) layer
     pipeline.model.field.add_intermediate_outputs([1])
 
-    print(pipeline.model.field.mlp_head.intermediate_outputs)
-
     # get outputs of the NeRF from the camera's POV
     outputs = pipeline.model.get_outputs_for_camera(cam)
 
     print(outputs.keys())
 
+    print("depth shape:", outputs['rgb'].shape)
+    utils.display_features_image(outputs['layer1'])
+    # utils.display_depth_image(outputs['rgb'][:,:,1])
+
 
 main()
+
+# utils.display_features_image(1)

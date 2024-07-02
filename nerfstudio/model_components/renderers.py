@@ -465,8 +465,8 @@ class FeaturesRenderer(nn.Module):
     ) -> Float[Tensor, "TODO"]:
         """Composite samples along ray
         """
-        print("features shape:", features.shape)
-        print("weights shape:", weights.shape)
+        # print("features shape:", features.shape)
+        # print("weights shape:", weights.shape)
 
         if ray_indices is not None and num_rays is not None:
             # Necessary for packed samples from volumetric ray sampler
@@ -476,8 +476,7 @@ class FeaturesRenderer(nn.Module):
         else:
             comp_features = torch.sum(weights * features, dim=-2) # is this right? what does dim=-2 imply?
 
-        return 0
-        # return comp_features
+        return comp_features
 
     def forward(
         self,

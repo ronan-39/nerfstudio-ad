@@ -319,5 +319,6 @@ class NerfactoField(Field):
         if self.intermediate_outputs is not None:
             for (i, layer) in enumerate(self.intermediate_outputs):
                 outputs.update({layer_num_to_enum(layer): self.mlp_head(h, get_intermediate_outputs=True)[i].view(*outputs_shape, -1).to(directions)})
+                # outputs.update({layer_num_to_enum(layer): self.mlp_head(h, get_intermediate_outputs=False).view(*outputs_shape, -1).to(directions)})
 
         return outputs
