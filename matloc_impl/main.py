@@ -50,6 +50,10 @@ def main():
     utils.display_features_image(outputs['layer1'])
     utils.display_depth_image(outputs['depth'], filter=False)
 
+    # print(type(MODEL_PATH))
+
+    # training_data = utils.CNNTrainingData("./01Gorilla/transforms.json")
+    # print(training_data)
 
 def train():
     #assign device
