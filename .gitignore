@@ -3,6 +3,10 @@
 
 # Custom data
 01Gorilla/
+retrieval/
+datasets/
+configs/
+data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

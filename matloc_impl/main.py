@@ -37,6 +37,7 @@ def main():
 
     # generate a camera with simple params pointed at the center of the scene
     cam = utils.gen_camera()
+    print(type(cam))
 
     # tell the model's field to output the activations of a "intermediate"(hidden) layer
     pipeline.model.field.add_intermediate_outputs([1])
@@ -51,8 +52,10 @@ def main():
 
 
 def train():
+    #assign device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
+    #parse the arguments from config
     parser = config_parser()
     args = parser.parse_args()
     output_dir = args.output_dir
@@ -93,18 +96,16 @@ def train():
             gt_mask_list.extend(mask)
 
             obs_img = x.cpu().numpy().squeeze(axis=0)
+            
             # Find the start pose by looking for the most similar images
             start_pose = pose_retrieval_loftr(imgs, obs_img, poses)
-            print(f"Start pose: {start_pose}")
-            print("Type of start pose: ", type(start_pose))
-            print(start_pose.shape)
-
-
-            # Create pose transformation model
             start_pose = torch.Tensor(start_pose).to(device)
+            
+            
 
 
 
 
 if __name__ == '__main__':
+    main()
     train()
