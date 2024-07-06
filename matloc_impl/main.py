@@ -67,13 +67,26 @@ def train():
     batch_size = args.batch_size
     kernel_size = args.kernel_size
     lrate = args.lrate
+    MODEL_PATH = Path(args.model_path)
     sampling_strategy = args.sampling_strategy
+    print(MODEL_PATH)
+    #Load PAD classes
     class_name = 'all'
-
     class_names = lego.CLASS_NAMES if class_name == 'all' else [
         class_name]
 
+    #load the pretrained NERF model
+    config, pipeline, _, _ = eval_setup(
+            config_path=MODEL_PATH,
+            test_mode='inference'
+        )
+    
+    # tell the model's field to output the activations of a "intermediate"(hidden) layer
+    pipeline.model.field.add_intermediate_outputs([1])
+    
+    #iterate over all classes, and then all images in the class
     for class_name in class_names:
+        
         # load the good imgs with their poses
         imgs, hwf, poses = load_blender_ad(
             args.data_dir, model_name, args.half_res, args.white_bkgd)
@@ -93,6 +106,7 @@ def train():
         gt_list = list()
         
         index = 0
+
         for x, y, mask in lego_loader:
             test_imgs.extend(x.cpu().numpy())
             gt_list.extend(y.cpu().numpy())
@@ -103,7 +117,30 @@ def train():
             
             # Find the start pose by looking for the most similar images
             start_pose = pose_retrieval_loftr(imgs, obs_img, poses)
-            start_pose = torch.Tensor(start_pose).to(device)
+            
+            #remove last row of start pose for ease of use with nerfstudio
+            start_pose = start_pose[:-1]
+            
+            #convert to torch tensor
+            start_pose = torch.tensor(start_pose).to(device) 
+            
+            cam = utils.gen_camera(transform_matrix = start_pose)
+            
+            # get outputs of the NeRF from the camera's POV
+            outputs = pipeline.model.get_outputs_for_camera(cam)
+                        
+            #get features and depth images
+            features = outputs['layer1']
+            depth = outputs['depth']
+            
+            print(features.shape)
+            print(depth.shape)
+
+            
+            
+            
+            
+            
             
             
 
@@ -111,5 +148,5 @@ def train():
 
 
 if __name__ == '__main__':
-    main()
+    # main()
     train()

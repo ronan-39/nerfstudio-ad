@@ -31,7 +31,7 @@ def gen_camera(fov=np.pi/2.0, transform_matrix=None, im_size=(256,256)):
     fov is FOV in the x dimension.
     if no transform is supplied, it'll use a hardcoded one
     """
-
+    
     image_width = im_size[0]
     image_height = im_size[1]
     pp_w = image_width / 2.0
@@ -41,7 +41,7 @@ def gen_camera(fov=np.pi/2.0, transform_matrix=None, im_size=(256,256)):
     fx = intrinsics_matrix[0, 0]
     fy = intrinsics_matrix[1, 1]
 
-    if transform_matrix == None:
+    if transform_matrix is None:
         transform_matrix = Tensor([
             [1,0,0,0],
             [0,1,0,0],
@@ -340,6 +340,9 @@ def config_parser():
     
     parser.add_argument("--class_name", type=str, default='01Gorilla',
                         help='LEGO-3D anomaly class')
+    
+    parser.add_argument("--model_path", type=str, default='outputs/unnamed/nerfacto/2024-06-27_170932/config.yml',
+                        help='path to the trained model')
     
     
 
