@@ -21,6 +21,8 @@ import datasets.LEGO_3D as lego
 from datasets.LEGO_3D import LEGODataset
 from torch.utils.data import DataLoader
 
+from Matching_Utils import lift_to_3d
+
 
 
 
@@ -117,14 +119,12 @@ def train():
             
             # Find the start pose by looking for the most similar images
             start_pose = pose_retrieval_loftr(imgs, obs_img, poses)
+            start_pose = torch.tensor(start_pose).to(device)
             
             #remove last row of start pose for ease of use with nerfstudio
-            start_pose = start_pose[:-1]
+            start_pose_copy = start_pose[:-1]
             
-            #convert to torch tensor
-            start_pose = torch.tensor(start_pose).to(device) 
-            
-            cam = utils.gen_camera(transform_matrix = start_pose)
+            cam = utils.gen_camera(transform_matrix = start_pose_copy)
             
             # get outputs of the NeRF from the camera's POV
             outputs = pipeline.model.get_outputs_for_camera(cam)
@@ -132,9 +132,12 @@ def train():
             #get features and depth images
             features = outputs['layer1']
             depth = outputs['depth']
+        
             
-            print(features.shape)
-            print(depth.shape)
+            output = lift_to_3d(depth, features, start_pose)
+            
+            print(output.shape)
+            
 
             
             
