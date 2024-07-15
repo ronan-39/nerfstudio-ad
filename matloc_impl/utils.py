@@ -11,6 +11,7 @@ from typing import List
 import json
 from tqdm import tqdm
 import math
+import pickle
 
 def show_mem_usage():
     usage = torch.cuda.mem_get_info()
@@ -213,7 +214,7 @@ class CNNTrainingData():
 
         for i in tqdm(range(len(self.transforms))):
             tf = self.transforms[i]
-            cam = gen_camera(transform_matrix=tf[0:3,:], im_size=(512,512))
+            cam = gen_camera(transform_matrix=tf[0:3,:], im_size=(256,256))
             cam = cam.to(pipeline.model.device)
             assert isinstance(cam, Cameras)
             outputs = pipeline.model.get_outputs_for_camera(cam)
@@ -231,6 +232,9 @@ class CNNTrainingData():
             to_pil = ToPILImage()
             image = to_pil(a)
             image.save(self.feature_image_paths[i])
+
+            with open(self.feature_paths[i], "wb") as outfile:
+                pickle.dump(outputs['layer1'], outfile)
 
             # if i == 5:
             #     print("cutting short")
