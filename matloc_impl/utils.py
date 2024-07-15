@@ -10,16 +10,24 @@ from pathlib import PosixPath, Path
 from typing import List
 import json
 from tqdm import tqdm
+import math
 
 def show_mem_usage():
     usage = torch.cuda.mem_get_info()
     print("mem usage: ", 1 - usage[0]/usage[1])
 
-def gen_camera(fov=np.pi/2.0, transform_matrix=None, im_size=(256,256)):
+def gen_camera(fov=np.pi/2.0, transform_matrix=None, im_size=(512,307)):
     """Generate a camera for generating rays
     fov is FOV in the x dimension.
     if no transform is supplied, it'll use a hardcoded one
     """
+
+    # fov = 1.3089969389957472 # default viewer fov
+    # fov = np.pi/2.0
+    # print("fov", fov)
+    # fov = 0.69111 by default
+    # fov = 0.69111
+    # print("fov:", fov)
 
     image_width = im_size[0]
     image_height = im_size[1]
@@ -30,7 +38,7 @@ def gen_camera(fov=np.pi/2.0, transform_matrix=None, im_size=(256,256)):
     fx = intrinsics_matrix[0, 0]
     fy = intrinsics_matrix[1, 1]
 
-    if transform_matrix == None:
+    if transform_matrix is None:
         transform_matrix = Tensor([
             [1,0,0,0],
             [0,1,0,0],
@@ -39,7 +47,29 @@ def gen_camera(fov=np.pi/2.0, transform_matrix=None, im_size=(256,256)):
     # else:
         # print(transform_matrix)
 
-    return Cameras(transform_matrix, fx, fy, pp_w, pp_h)
+    # transform_matrix = Tensor([[[-7.0711e-01, -4.0825e-01,  5.7735e-01,  3.0000e-01],
+    #      [ 7.0711e-01, -4.0825e-01,  5.7735e-01,  3.0000e-01],
+    #      [-1.6653e-16,  8.1650e-01,  5.7735e-01,  3.0000e-01]]])
+
+    # return Cameras(transform_matrix, fx, fy, pp_w, pp_h)
+    return Cameras(
+        fx=fx,
+        fy=fy,
+        cx=pp_w,
+        cy=pp_h,
+        camera_to_worlds=transform_matrix.float()
+    )
+
+    # return Cameras(camera_to_worlds=Tensor([[[-7.0711e-01, -4.0825e-01,  5.7735e-01,  3.0000e-01],
+        #  [ 7.0711e-01, -4.0825e-01,  5.7735e-01,  3.0000e-01],
+        #  [-1.6653e-16,  8.1650e-01,  5.7735e-01,  3.0000e-01]]]), fx = Tensor([[200.0415]]), fy=Tensor([[200.0451]]), cx=Tensor([[256.]]), cy=Tensor([[153.500]]), width=512, height=307)
+
+"""
+Cameras(camera_to_worlds=tensor([[[-7.0711e-01, -4.0825e-01,  5.7735e-01,  3.0000e-01],
+         [ 7.0711e-01, -4.0825e-01,  5.7735e-01,  3.0000e-01],
+         [-1.6653e-16,  8.1650e-01,  5.7735e-01,  3.0000e-01]]],
+       device='cuda:0'), fx=tensor([[200.0451]], device='cuda:0'), fy=tensor([[200.0451]], device='cuda:0'), cx=tensor([[256.]], device='cuda:0'), cy=tensor([[153.5000]], device='cuda:0'), width=tensor([[512]], device='cuda:0'), height=tensor([[307]], device='cuda:0'), distortion_params=None, camera_type=tensor([[1]], device='cuda:0'), times=tensor([[0.]], device='cuda:0'), metadata=None)
+"""
 
 
 def display_depth_image(o, filter=False): # input a depth tensor TODO: assert that its the correct input
@@ -76,12 +106,139 @@ def display_features_image(o):
     image.show()
 
 
+def points_on_sphere(radius, phi_divs=14, theta_divs=14):
+    """Generate a list of transforms that place a camera on the surface of the sphere pointing toward the origin
+    """
+
+    tfs = []
+    
+    for t in range(theta_divs):
+        theta = t/theta_divs * 1 * np.pi + (1/theta_divs * np.pi)
+        for p in range(phi_divs):
+            phi = p/phi_divs * 2 * np.pi + (1/phi_divs * 2 * np.pi)
+
+            # if t == 5:
+                # import sys
+                # sys.exit()
+
+            x = radius * np.sin(theta) * np.cos(phi)
+            y = radius * np.sin(theta) * np.sin(phi)
+            z = radius * np.cos(theta)
+
+            t = torch.tensor([x, y, z])
+
+            z_basis = t/ torch.norm(t)
+            second_basis = -np.cross(t, torch.tensor([0,0,-1]))
+            second_basis /= np.linalg.norm(second_basis)
+            second_basis = torch.from_numpy(second_basis)
+            if torch.allclose(z_basis.float(), torch.tensor([0,0,1]).float()):
+                second_basis = torch.tensor([0,1,0])
+            third_basis = torch.from_numpy(np.cross(z_basis, second_basis))
+
+            # from scipy.spatial.transform import Rotation
+            # r = torch.from_numpy(Rotation.from_euler("xyz", t).as_matrix())
+            r = torch.from_numpy(np.identity(3))
+            r[0:3, 2] = z_basis
+            r[0:3, 1] = -third_basis
+            r[0:3, 0] = second_basis
+
+            tf = torch.cat([r, t.view(-1,1)], dim=1)
+            tf = torch.cat([tf, torch.tensor([[0,0,0,1]])])
+
+            tfs.append(tf) # todo: convert to torch tensor here, use np arrays otherwise
+
+    return tfs
+
+
 class CNNTrainingData():
-    input_image_paths: List[PosixPath] = []
-    feature_image_paths: List[PosixPath] = []
+    rgb_image_paths: List[Path] = []
+    feature_paths: List[Path] = []
+    feature_image_paths: List[Path] = []
     transforms: List[Tensor] = []
 
     def __init__(self, model_path, file_path, force_overwrite=False):
+        self.init_new(model_path, file_path, force_overwrite=force_overwrite, render_feature_images=True)
+
+    def init_new(self, model_path, file_path, num_images=14*14, force_overwrite=False, render_feature_images=False):
+        if type(num_images) != int or num_images != math.isqrt(num_images) ** 2:
+            raise Exception("num_images must be square")
+        
+        output_dir = Path(('/').join(model_path.parts[0:2])).joinpath("feature_image_pairs")
+
+        should_render = False
+
+        if not output_dir.exists():
+            output_dir.mkdir()
+            output_dir.joinpath("rgb").mkdir()
+            output_dir.joinpath("features").mkdir()
+            should_render = True
+            print(f'Created {output_dir}, proceeding to render image pairs')
+        
+        if not should_render and force_overwrite:
+            print("Force overwrite is true, so rendering image pairs")
+
+        for i in range(num_images):
+            rgb_filepath = output_dir.joinpath('rgb').joinpath(f'rgb_{i}.png')
+            feat_filepath = output_dir.joinpath('features').joinpath(f'feat_{i}.feature')
+            feat_image_filepath = output_dir.joinpath('features').joinpath(f'feat_{i}.png')
+
+            filepaths = [rgb_filepath, feat_filepath]
+
+            if render_feature_images:
+                filepaths.append(feat_image_filepath)
+
+            if not should_render:
+                if not all([p.exists() for p in filepaths]):
+                    print('Output directories exists, but files are missing. Rendering image pairs')
+                    should_render=True
+
+            self.rgb_image_paths.append(rgb_filepath)
+            self.feature_paths.append(feat_filepath)
+
+            if render_feature_images:
+                self.feature_image_paths.append(feat_image_filepath)
+
+
+        if not should_render:
+            return
+        
+        self.transforms = points_on_sphere(0.6, phi_divs=math.isqrt(num_images), theta_divs=math.isqrt(num_images))
+
+        config, pipeline, _, _ = eval_setup(
+            config_path=MODEL_PATH,
+            test_mode='inference'
+        )
+
+        pipeline.model.field.add_intermediate_outputs([1])
+
+        for i in tqdm(range(len(self.transforms))):
+            tf = self.transforms[i]
+            cam = gen_camera(transform_matrix=tf[0:3,:], im_size=(512,512))
+            cam = cam.to(pipeline.model.device)
+            assert isinstance(cam, Cameras)
+            outputs = pipeline.model.get_outputs_for_camera(cam)
+
+            a = nerfstudio.utils.colormaps.apply_colormap(outputs['rgb'], colormap_options=ColormapOptions())
+            rgb_image = a.permute(2,0,1)
+
+            to_pil = ToPILImage()
+            image = to_pil(rgb_image)
+            image.save(self.rgb_image_paths[i])
+
+            a = nerfstudio.utils.colormaps.apply_colormap(outputs['layer1'], colormap_options=ColormapOptions())
+            a = a.permute(2,0,1)
+
+            to_pil = ToPILImage()
+            image = to_pil(a)
+            image.save(self.feature_image_paths[i])
+
+            # if i == 5:
+            #     print("cutting short")
+            #     import sys
+            #     sys.exit()
+
+
+    def init_old(self, model_path, file_path, force_overwrite=False):
         with open(file_path, 'r') as f:
             data = json.load(f)
 
@@ -130,10 +287,12 @@ class CNNTrainingData():
             for i in tqdm(range(len(self.feature_image_paths))):
                 out_path = self.feature_image_paths[i]
                 tf = self.transforms[i]
-                cam = gen_camera(fov=data['camera_angle_x'], transform_matrix=tf[0:3,:], im_size=(800,800))
+                cam = gen_camera(fov=data['camera_angle_x']/(np.pi), transform_matrix=tf[0:3,:], im_size=(800,800))
+                cam = cam.to(pipeline.model.device)
+                assert isinstance(cam, Cameras)
                 outputs = pipeline.model.get_outputs_for_camera(cam)
 
-                a = nerfstudio.utils.colormaps.apply_colormap(outputs['layer1'], colormap_options=ColormapOptions())
+                a = nerfstudio.utils.colormaps.apply_colormap(outputs['rgb'], colormap_options=ColormapOptions())
                 a = a.permute(2,0,1)
 
                 to_pil = ToPILImage()
@@ -154,9 +313,13 @@ class CNNTrainingData():
 
 if __name__ == "__main__":
     MODEL_PATH = Path('outputs/unnamed/nerfacto/2024-06-27_170932/config.yml')
-    assert Path('outputs/unnamed/nerfacto/2024-06-27_170932/nerfstudio_models/step-000029999.ckpt').exists(), "The checkpoint file wasn't found."
-    td = CNNTrainingData(MODEL_PATH, "./01Gorilla/transforms.json", force_overwrite=True)
+    # assert Path('outputs/unnamed/nerfacto/2024-06-27_170932/nerfstudio_models/step-000029999.ckpt').exists(), "The checkpoint file wasn't found."
 
+    # MODEL_PATH = Path('outputs/01Gorilla/nerfacto/2024-06-21_160959/config.yml') # tcnn model
+    # assert Path('outputs/unnamed/nerfacto/2024-06-27_170932/nerfstudio_models/step-000029999.ckpt').exists(), "The checkpoint file wasn't found."
+    td = CNNTrainingData(MODEL_PATH, "./01Gorilla/transforms.json", force_overwrite=False)
+
+    # points_on_sphere(1.0)
 
 
 '''

@@ -203,6 +203,10 @@ class NerfactoField(Field):
         )
 
     def add_intermediate_outputs(self, layers: List[int]):
+        if self.mlp_head.tcnn_encoding is not None:
+            print("Cannot get intermediate layers from tcnn implementation. Not adding this output")
+            return
+
         for layer in layers:
             if layer < 0 or layer >= self.mlp_head.num_layers:
                 print(f'WARNING: Layer {layer} is out of bounds.')
@@ -319,6 +323,9 @@ class NerfactoField(Field):
 
         # intermediate layers
         if self.intermediate_outputs is not None:
+            if self.mlp_head.tcnn_encoding is not None:
+                print("Can't get intermediate layers from tcnn implementation. Returning output without intermediate layers")
+                return outputs
             for (i, layer) in enumerate(self.intermediate_outputs):
                 outputs.update({layer_num_to_enum(layer): self.mlp_head(h, get_intermediate_outputs=True)[i].view(*outputs_shape, -1).to(directions)})
 
