@@ -199,8 +199,10 @@ class MLP(FieldComponent):
                 x = self.activation(x)
 
             if i in self.intermediate_outputs:
+                # print(f'adding layer {i} because its in {self.intermediate_outputs}')
                 activations.append(x)
 
+        activations.insert(0, x)
         return activations
 
     def forward(self, in_tensor: Float[Tensor, "*bs in_dim"], get_intermediate_outputs: Optional[bool] = False) -> Float[Tensor, "*bs out_dim"]:

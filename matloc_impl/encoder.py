@@ -73,7 +73,7 @@ class EncodingDataset(Dataset):
             
 def preview_dataset(dataset):
 
-    fig, axes = plt.subplots(nrows=2, ncols=6, sharex=True, sharey=True, figsize=(48,14))
+    fig, axes = plt.subplots(nrows=2, ncols=6, sharex=True, sharey=True, figsize=(42,14))
 
     ins = [dataset.__getitem__(i)['input'].permute(1,2,0).numpy() for i in range(6)]
     outs = [nerfstudio.utils.colormaps.apply_colormap(dataset.__getitem__(i)['desired_output'].cpu().permute(1,2,0), colormap_options=ColormapOptions()).numpy() for i in range(6)]
@@ -110,9 +110,10 @@ if __name__ == "__main__":
 
     dataset = EncodingDataset(training_data_dir)
     
-    # preview_dataset(dataset)
+    preview_dataset(dataset)
 
     dataloader = DataLoader(dataset, batch_size=5, sampler=SubsetRandomSampler(list(range(dataset.len))), num_workers=0)
+    print(len(dataloader))
     
 
 """

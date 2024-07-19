@@ -75,7 +75,8 @@ Cameras(camera_to_worlds=tensor([[[-7.0711e-01, -4.0825e-01,  5.7735e-01,  3.000
 
 def display_depth_image(o, filter=False): # input a depth tensor TODO: assert that its the correct input
 
-    o = o.permute(2,0,1)
+    if filter == False:
+        o = o.permute(2,0,1)
 
     # make the depth image look better (not sure how this affects other outputs)
     if filter:
@@ -86,7 +87,7 @@ def display_depth_image(o, filter=False): # input a depth tensor TODO: assert th
         o /= _max.item()
         o = np.power(o, 1/4) # tune the exponent per NeRF, 1/4 is good for the gorilla
         o *= 255.0
-        o = np.where( o > 80.0, 255.0, o)
+        o = np.where( o > 39.0, 255.0, o)
 
     to_pil = ToPILImage()
     image = to_pil(o) # use this if you use `o.where()` (it becomes an array instead of tensor)
@@ -118,10 +119,6 @@ def points_on_sphere(radius, phi_divs=14, theta_divs=14):
         for p in range(phi_divs):
             phi = p/phi_divs * 2 * np.pi + (1/phi_divs * 2 * np.pi)
 
-            # if t == 5:
-                # import sys
-                # sys.exit()
-
             x = radius * np.sin(theta) * np.cos(phi)
             y = radius * np.sin(theta) * np.sin(phi)
             z = radius * np.cos(theta)
@@ -136,8 +133,6 @@ def points_on_sphere(radius, phi_divs=14, theta_divs=14):
                 second_basis = torch.tensor([0,1,0])
             third_basis = torch.from_numpy(np.cross(z_basis, second_basis))
 
-            # from scipy.spatial.transform import Rotation
-            # r = torch.from_numpy(Rotation.from_euler("xyz", t).as_matrix())
             r = torch.from_numpy(np.identity(3))
             r[0:3, 2] = z_basis
             r[0:3, 1] = -third_basis
