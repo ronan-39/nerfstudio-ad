@@ -29,19 +29,23 @@ def main():
     cam = utils.gen_camera()
 
     # tell the model's field to output the activations of a "intermediate"(hidden) layer
-    pipeline.model.field.add_intermediate_outputs([0,1,2])
+    pipeline.model.field.add_intermediate_outputs([0,1,2]) # TODO some bug where if i dont add all three of these, the output of layer1 is wrong
 
     # get outputs of the NeRF from the camera's POV
     outputs = pipeline.model.get_outputs_for_camera(cam)
 
     print(outputs.keys())
 
+    print(outputs['layer0'].shape)
+    print(outputs['layer1'].shape)
+    print(outputs['layer2'].shape)
+
     # utils.display_features_image(outputs['layer0'])
     # utils.display_features_image(outputs['layer1'])
     # utils.display_features_image(outputs['layer2'])
     # utils.display_features_image(outputs['rgb'])
     # utils.display_depth_image(outputs['depth'], filter=False)
-    utils.display_depth_image(outputs['depth'], filter=True)
+    # utils.display_depth_image(outputs['depth'], filter=True)
 
     # print(type(MODEL_PATH))
 

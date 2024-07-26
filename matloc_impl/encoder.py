@@ -26,6 +26,7 @@ from nerfstudio.utils.colormaps import ColormapOptions
 
 # print(model)
 
+
 class Encoder(nn.Module):
     def __init__(self):
         super(Encoder, self).__init__()
@@ -61,7 +62,7 @@ class EncodingDataset(Dataset):
         input_filepath = self.data_dir.joinpath(f'rgb/rgb_{idx}.png')
         output_filepath = self.data_dir.joinpath(f'features/feat_{idx}.feature')
 
-        input = torchvision.io.read_image(str(input_filepath))
+        input_im = torchvision.io.read_image(str(input_filepath))
 
         output_file = open(output_filepath, 'rb')
         output = pickle.load(output_file)
@@ -69,7 +70,8 @@ class EncodingDataset(Dataset):
         if output.shape[2] == 64: # its in the wrong order, a remnant of earlier code
             output = output.permute(2,0,1)
             
-        return {'input': input, 'desired_output': output}
+        # return {'input': input_im, 'desired_output': output}
+        return (input_im.float().cuda(), output.cuda())
             
 def preview_dataset(dataset):
 

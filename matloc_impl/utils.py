@@ -153,9 +153,10 @@ class CNNTrainingData():
     transforms: List[Tensor] = []
 
     def __init__(self, model_path, file_path, force_overwrite=False):
+        print("creating CNN training data")
         self.init_new(model_path, file_path, force_overwrite=force_overwrite, render_feature_images=True)
 
-    def init_new(self, model_path, file_path, num_images=14*14, force_overwrite=False, render_feature_images=False):
+    def init_new(self, model_path, _file_path, num_images=14*14, force_overwrite=False, render_feature_images=False):
         if type(num_images) != int or num_images != math.isqrt(num_images) ** 2:
             raise Exception("num_images must be square")
         
@@ -172,6 +173,7 @@ class CNNTrainingData():
         
         if not should_render and force_overwrite:
             print("Force overwrite is true, so rendering image pairs")
+            should_render = True
 
         for i in range(num_images):
             rgb_filepath = output_dir.joinpath('rgb').joinpath(f'rgb_{i}.png')
@@ -196,6 +198,7 @@ class CNNTrainingData():
 
 
         if not should_render:
+            print("shouldnt render. returning")
             return
         
         self.transforms = points_on_sphere(0.6, phi_divs=math.isqrt(num_images), theta_divs=math.isqrt(num_images))
@@ -205,11 +208,11 @@ class CNNTrainingData():
             test_mode='inference'
         )
 
-        pipeline.model.field.add_intermediate_outputs([1])
+        pipeline.model.field.add_intermediate_outputs([0,1,2])
 
         for i in tqdm(range(len(self.transforms))):
             tf = self.transforms[i]
-            cam = gen_camera(transform_matrix=tf[0:3,:], im_size=(256,256))
+            cam = gen_camera(transform_matrix=tf[0:3,:], im_size=(224,224))
             cam = cam.to(pipeline.model.device)
             assert isinstance(cam, Cameras)
             outputs = pipeline.model.get_outputs_for_camera(cam)
@@ -232,6 +235,8 @@ class CNNTrainingData():
                 pickle.dump(outputs['layer1'], outfile)
 
             # if i == 5:
+            #     print(self.feature_paths[i])
+            #     print(outputs['layer1'].shape)
             #     print("cutting short")
             #     import sys
             #     sys.exit()
@@ -312,14 +317,20 @@ class CNNTrainingData():
 
 if __name__ == "__main__":
     MODEL_PATH = Path('outputs/unnamed/nerfacto/2024-06-27_170932/config.yml')
-    # assert Path('outputs/unnamed/nerfacto/2024-06-27_170932/nerfstudio_models/step-000029999.ckpt').exists(), "The checkpoint file wasn't found."
+    assert Path('outputs/unnamed/nerfacto/2024-06-27_170932/nerfstudio_models/step-000029999.ckpt').exists(), "The checkpoint file wasn't found."
 
     # MODEL_PATH = Path('outputs/01Gorilla/nerfacto/2024-06-21_160959/config.yml') # tcnn model
     # assert Path('outputs/unnamed/nerfacto/2024-06-27_170932/nerfstudio_models/step-000029999.ckpt').exists(), "The checkpoint file wasn't found."
-    td = CNNTrainingData(MODEL_PATH, "./01Gorilla/transforms.json", force_overwrite=False)
+    # td = CNNTrainingData(MODEL_PATH, "./01Gorilla/transforms.json", force_overwrite=False)
 
     # points_on_sphere(1.0)
 
+    # i have to be in ./02Unicorn to make this bit work... this is so messy but i swear ill fix it later
+    # MODEL_PATH = Path('outputs/unnamed/nerfacto/2024-07-25_235627/config.yml')
+    # MODEL_PATH = Path('outputs/unicorn_torch/nerfacto/2024-07-26_003033/config.yml')
+    # assert MODEL_PATH.exists(), "The checkpoint file wasn't found"
+    # assert Path('02Unicorn/outputs/unnamed/nerfacto/2024-07-25_235627/nerfstudio_models/step-000029999.ckpt').exists(), "The checkpoint file wasn't found."
+    CNNTrainingData(MODEL_PATH, "./this_shouldnt_exist", force_overwrite=True)
 
 '''
 start by making the function save the images
