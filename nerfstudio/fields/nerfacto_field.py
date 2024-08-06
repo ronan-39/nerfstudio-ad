@@ -331,6 +331,7 @@ class NerfactoField(Field):
             mlp_outputs = self.mlp_head(h, get_intermediate_outputs=True)
             # print("num of outputs", len(mlp_outputs))
             for (i, layer) in enumerate(self.intermediate_outputs):
-                outputs.update({layer_num_to_enum(layer): mlp_outputs[i].view(*outputs_shape, -1).to(directions)})
+                # print(layer, mlp_outputs[i].shape)
+                outputs.update({layer_num_to_enum(layer): mlp_outputs["layer"+str(layer)].view(*outputs_shape, -1).to(directions)})
 
         return outputs

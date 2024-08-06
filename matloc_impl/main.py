@@ -39,11 +39,18 @@ def main():
     print(outputs['layer0'].shape)
     print(outputs['layer1'].shape)
     print(outputs['layer2'].shape)
+    import time
 
-    # utils.display_features_image(outputs['layer0'])
-    # utils.display_features_image(outputs['layer1'])
-    # utils.display_features_image(outputs['layer2'])
-    # utils.display_features_image(outputs['rgb'])
+    # torch.summary()
+    # print(pipeline.model.field.mlp_head)
+
+    utils.display_features_image(outputs['layer0'])
+    time.sleep(1)
+    utils.display_features_image(outputs['layer1'])
+    time.sleep(1)
+    utils.display_features_image(outputs['layer2'])
+    time.sleep(1)
+    utils.display_features_image(outputs['rgb'])
     # utils.display_depth_image(outputs['depth'], filter=False)
     # utils.display_depth_image(outputs['depth'], filter=True)
 
