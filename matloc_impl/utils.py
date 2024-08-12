@@ -1,6 +1,7 @@
 import torch
 from torch import Tensor
 from torchvision.transforms import ToPILImage
+import torchvision
 import nerfstudio
 from nerfstudio.utils.colormaps import ColormapOptions
 from nerfstudio.utils.eval_utils import eval_setup
@@ -13,6 +14,7 @@ from tqdm import tqdm
 import math
 import pickle
 import yaml
+import glob
 
 def show_mem_usage():
     usage = torch.cuda.mem_get_info()
@@ -404,6 +406,36 @@ def create_training_data_from_nerf(nerf_dir, output_dir, num_images=14*14, force
         # print("save", image_path)
         # print("save", label_path)
         # print("save", label_image_path)
+
+def generate_masks(dir, threshold):
+    """
+    generate a mask for the white parts of an image. this is specifically for use with MAD NeRFs, since the
+    RGB background is a mostly clean white, while the feature images have a lot of noise in the background.
+    
+    path: directory where all the rgb images are stored
+    tolerance: maximum intensity of masked area
+    """
+    if '~/' in dir:
+        dir = dir.replace('~', str(Path.home()))
+
+    path = Path(dir)
+    output_path = path.joinpath("masks")
+
+    if not path.exists():
+        raise Exception("directory does not exist")
+    
+    if not output_path.exists():
+        output_path.mkdir()
+    
+    to_pil = ToPILImage()
+    for filepath in glob.iglob(str(path) + "/*.png"):
+        im = torchvision.io.read_image(filepath, mode=torchvision.io.ImageReadMode.GRAY)
+        mask = (im <= threshold).float()
+
+        mask_name = filepath.split('/')[-1].split('.')[0] + "_mask.png"
+        
+        image = to_pil(mask)
+        image.save(output_path.joinpath(mask_name))
 
 
 if __name__ == "__main__":
